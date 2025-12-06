@@ -1,0 +1,708 @@
+import React, { useState, useEffect } from "react";
+import "./admin-dashboard.css";
+
+const AdminSidebar = ({ onSelectSection }) => {
+  return (
+    <aside className="admin-sidebar">
+      <div className="sidebar-header">
+        <div className="logo-pill">SS</div>
+        <span className="sidebar-title">ShopSphere Admin</span>
+      </div>
+
+      <ul className="sidebar-menu">
+        <li onClick={() => onSelectSection("dashboard")}>Dashboard</li>
+        <li onClick={() => onSelectSection("products")}>Products</li>
+        <li onClick={() => onSelectSection("orders")}>Orders</li>
+        <li onClick={() => onSelectSection("payments")}>Payments</li>
+        <li onClick={() => onSelectSection("users")}>Users</li>
+      </ul>
+    </aside>
+  );
+};
+
+const DashboardHome = () => {
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:8080/api/admin/dashboard", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        });
+
+        if (!res.ok) throw new Error("Failed to load dashboard data");
+
+        const data = await res.json();
+        setSummary(data);
+      } catch (err) {
+        setError("Could not load dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSummary();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="dashboard-grid">
+        <p className="panel-subtitle">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (!summary || error) {
+    return (
+      <div className="dashboard-grid">
+        <p className="panel-subtitle">{error || "No data available"}</p>
+      </div>
+    );
+  }
+
+  const {
+    totalRevenue,
+    totalOrders,
+    totalProducts,
+    successfulPayments,
+    ordersByStatus,
+    recentOrders,
+    lowStockProducts,
+  } = summary;
+
+  const stats = [
+    {
+      label: "Total Revenue",
+      value: `₹${Number(totalRevenue || 0).toLocaleString("en-IN")}`,
+      chip: "All time",
+      type: "primary",
+    },
+    {
+      label: "Total Orders",
+      value: totalOrders,
+      chip: "All orders",
+      type: "secondary",
+    },
+    {
+      label: "Active Products",
+      value: totalProducts,
+      chip: "Catalog",
+      type: "secondary",
+    },
+    {
+      label: "Successful Payments",
+      value: successfulPayments,
+      chip: "Gateway Success",
+      type: "secondary",
+    },
+  ];
+
+  const statusLabels = [
+    { key: "pending", label: "Pending" },
+    { key: "confirmed", label: "Confirmed" },
+    { key: "shipped", label: "Shipped" },
+    { key: "delivered", label: "Delivered" },
+    { key: "cancelled", label: "Cancelled" },
+  ];
+
+  const maxStatusVal = Math.max(
+    ...statusLabels.map((s) => ordersByStatus[s.key] || 0),
+    1
+  );
+
+  return (
+    <div className="dashboard-grid">
+      {/* STAT CARDS */}
+      <section className="stat-grid">
+        {stats.map((stat) => (
+          <article key={stat.label} className={`stat-card stat-card-${stat.type}`}>
+            <h3>{stat.label}</h3>
+            <p className="stat-value">{stat.value}</p>
+            <span className="stat-chip">{stat.chip}</span>
+
+            <div className="stat-orbit">
+              <div className="stat-orbit-ring" />
+              <div className="stat-orbit-dot" />
+            </div>
+          </article>
+        ))}
+      </section>
+
+      {/* CHART + LOW STOCK */}
+      <section className="lower-grid">
+        {/* ORDERS BY STATUS CHART */}
+        <article className="panel panel-main">
+          <div className="panel-header">
+            <h3>Orders by Status</h3>
+            <span className="panel-tag">Live chart</span>
+          </div>
+
+          <div className="chart-wrapper">
+            <div className="mini-chart">
+              {statusLabels.map((s) => {
+                const val = ordersByStatus[s.key];
+                const height = (val / maxStatusVal) * 100;
+
+                return (
+                  <div key={s.key} className="mini-chart-col">
+                    <div
+                      className="mini-chart-bar"
+                      style={{ height: `${height}%` }}
+                    ></div>
+                    <span className="mini-chart-label">{s.label}</span>
+                    <span className="mini-chart-value">{val}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </article>
+
+        {/* LOW STOCK */}
+        <article className="panel panel-side">
+          <div className="panel-header">
+            <h3>Low Stock Alerts</h3>
+            <span className="panel-tag soft">Qty ≤ 5</span>
+          </div>
+
+          {lowStockProducts?.length ? (
+            <ul className="low-stock-list">
+              {lowStockProducts.map((item) => (
+                <li key={item.productId} className="low-stock-item">
+                  <div>
+                    <p className="low-stock-name">{item.productName}</p>
+                    <p className="low-stock-subtitle">ID: {item.productId}</p>
+                  </div>
+                  <span
+                    className={`low-stock-badge ${
+                      item.productQuantity <= 2 ? "critical" : ""
+                    }`}
+                  >
+                    {item.productQuantity} left
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="panel-subtitle">No low stock items</p>
+          )}
+        </article>
+      </section>
+
+      {/* RECENT ORDERS */}
+      <section className="panel panel-full" style={{ marginTop: "20px" }}>
+        <div className="panel-header">
+          <div>
+            <h3>Recent Orders</h3>
+            <p className="panel-subtitle">Latest 5 orders</p>
+          </div>
+        </div>
+
+        {recentOrders?.length ? (
+          <table className="panel-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Placed At</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {recentOrders.map((o) => (
+                <tr key={o.orderId}>
+                  <td>#ORD-{o.orderId}</td>
+                  <td>{o.customerName}</td>
+                  <td>₹{Number(o.totalAmount).toLocaleString("en-IN")}</td>
+                  <td>
+                    <span className={`status-pill status-${o.orderStatus.toLowerCase()}`}>
+                      {o.orderStatus}
+                    </span>
+                  </td>
+                  <td>{new Date(o.placedAt).toLocaleString("en-IN")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="panel-subtitle">No recent orders</p>
+        )}
+      </section>
+    </div>
+  );
+};
+
+const AdminDashboard = () => {
+  const [section, setSection] = useState("dashboard");
+
+  return (
+    <div className="admin-container">
+      <AdminSidebar onSelectSection={setSection} />
+
+      <main className="admin-main">
+        {section === "dashboard" && <DashboardHome />}
+        {section !== "dashboard" && (
+          <h2 className="panel-subtitle">Section under development</h2>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default AdminDashboard;
+
+
+
+
+-----------------------------------------------------------------------------------------
+
+:root {
+  --blue: #2563eb;
+  --violet: #7c3aed;
+  --bg: #f5f7fa;
+  --text-main: #1e293b;
+  --text-soft: #64748b;
+  --card-bg: #ffffff;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --shadow-soft: 0px 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* -------- LAYOUT -------- */
+
+.admin-container {
+  display: flex;
+  height: 100vh;
+  background: var(--bg);
+}
+
+/* SIDEBAR */
+
+.admin-sidebar {
+  width: 240px;
+  background: linear-gradient(160deg, var(--violet), var(--blue));
+  padding: 22px 18px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.logo-pill {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 0, #bfdbfe, var(--blue));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  color: white;
+  animation: floatSoft 3.2s ease-in-out infinite;
+}
+
+.sidebar-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.sidebar-menu li {
+  list-style: none;
+  padding: 12px 8px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.sidebar-menu li:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* MAIN CONTENT */
+
+.admin-main {
+  flex: 1;
+  padding: 26px;
+  background: white;
+  border-radius: var(--radius-lg);
+  margin: 16px;
+  box-shadow: var(--shadow-soft);
+  position: relative;
+  overflow: hidden;
+  animation: fadeInUpSoft 0.5s ease-out;
+}
+
+/* galaxy swirl */
+.admin-main::after {
+  content: "";
+  position: absolute;
+  right: -80px;
+  bottom: -80px;
+  width: 450px;
+  height: 450px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 180deg,
+    var(--blue),
+    var(--violet),
+    var(--blue),
+    #0ea5e9,
+    var(--violet),
+    var(--blue)
+  );
+  opacity: 0.18;
+  filter: blur(4px);
+  pointer-events: none;
+  animation: slowSpin 22s linear infinite;
+}
+
+/* STAT CARDS */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  animation: cardPop 0.4s ease-out both;
+  transition: 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.15);
+}
+
+.stat-grid .stat-card:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.stat-grid .stat-card:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.stat-grid .stat-card:nth-child(3) {
+  animation-delay: 0.19s;
+}
+.stat-grid .stat-card:nth-child(4) {
+  animation-delay: 0.26s;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 4px;
+  color: var(--text-main);
+}
+
+.stat-chip {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+/* orbit decoration */
+
+.stat-orbit-ring {
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--violet), transparent);
+  opacity: 0.2;
+}
+
+.stat-orbit-dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 0, #bfdbfe, var(--blue));
+  box-shadow: 0 0 18px rgba(129, 140, 248, 0.8);
+  top: 12px;
+  left: 18px;
+  animation: orbitGlow 2.4s ease-in-out infinite;
+}
+
+/* LOWER GRID */
+
+.lower-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-top: 26px;
+}
+
+.panel {
+  background: white;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+.panel-full {
+  grid-column: 1 / 3;
+}
+
+.panel-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.panel-tag {
+  background: var(--violet);
+  color: white;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-left: 10px;
+  font-size: 11px;
+}
+
+.panel-tag.soft {
+  background: var(--blue);
+}
+
+/* MINI BAR CHART */
+
+.chart-wrapper {
+  margin-top: 8px;
+}
+
+.mini-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-evenly;
+  height: 160px;
+  gap: 14px;
+}
+
+.mini-chart-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mini-chart-bar {
+  width: 48%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--blue), var(--violet));
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.18);
+  transition: 0.2s;
+}
+
+.mini-chart-bar:hover {
+  transform: translateY(-4px);
+}
+
+.mini-chart-label {
+  font-size: 11px;
+  color: var(--text-soft);
+  margin-top: 6px;
+}
+
+.mini-chart-value {
+  font-size: 11px;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+/* LOW STOCK */
+
+.low-stock-list {
+  margin-top: 10px;
+}
+
+.low-stock-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.low-stock-badge {
+  background: #fde047;
+  color: #78350f;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.low-stock-badge.critical {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+
+/* ORDERS TABLE */
+
+.panel-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+.panel-table th,
+.panel-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: white;
+}
+
+.status-pending {
+  background: #fbbf24;
+}
+
+.status-confirmed {
+  background: #3b82f6;
+}
+
+.status-shipped {
+  background: #7c3aed;
+}
+
+.status-delivered {
+  background: #22c55e;
+}
+
+.status-cancelled {
+  background: #ef4444;
+}
+
+/* -------- ANIMATIONS -------- */
+
+@keyframes fadeInUpSoft {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardPop {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes slowSpin {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  to {
+    transform: rotate(360deg) scale(1.03);
+  }
+}
+
+@keyframes orbitGlow {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 14px var(--violet);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 22px var(--blue);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 14px var(--violet);
+  }
+}
+
+@keyframes floatSoft {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+-----------------------------------------------------------------------------------------
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import AdminDashboard from "./admin-dashboard";
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        {/* your existing routes */}
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
+----------------------------------------------------------------------------
+const token = localStorage.getItem("token");
+const res = await fetch("http://localhost:8080/api/admin/dashboard", {
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: token ? `Bearer ${token}` : "",
+});
+
+--------------------------------------------------------------------------------
+localStorage.setItem("token", jwtFromBackend);
+---------------------------------------------------------------------------
+// Example in your Login.jsx or wherever:
+const handleLogin = async () => {
+  const res = await fetch("http://localhost:8080/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!res.ok) {
+    // handle error
+    return;
+  }
+
+  const data = await res.json();
+  // assuming backend returns { token: "jwt_here" }
+  localStorage.setItem("token", data.token);
+
+  // then redirect
+  window.location.href = "/admin";
+};
+

@@ -1,0 +1,8 @@
+package com.ShopSphere.shop_sphere.exception;
+
+public class DuplicateResourceException extends RuntimeException {
+
+    public DuplicateResourceException(String message) {
+        super(message);
+    }
+}
