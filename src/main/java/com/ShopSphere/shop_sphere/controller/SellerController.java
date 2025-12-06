@@ -209,7 +209,9 @@ package com.ShopSphere.shop_sphere.controller;
 
 import com.ShopSphere.shop_sphere.model.Product;
 import com.ShopSphere.shop_sphere.model.Order;
+import com.ShopSphere.shop_sphere.model.OrderItem;
 import com.ShopSphere.shop_sphere.repository.OrderDao;
+import com.ShopSphere.shop_sphere.repository.OrderItemDao;
 import com.ShopSphere.shop_sphere.repository.ProductDao;
 import com.ShopSphere.shop_sphere.service.ProductService;
 
@@ -229,13 +231,15 @@ public class SellerController {
     private final ProductDao productDao;
     private final OrderDao orderDao;
     private final ProductService productService;
+    private final OrderItemDao orderItemDao;
 
     public SellerController(ProductDao productDao,
                             OrderDao orderDao,
-                            ProductService productService) {
+                            ProductService productService,OrderItemDao orderItemDao) {
         this.productDao = productDao;
         this.orderDao = orderDao;
         this.productService = productService;
+        this.orderItemDao = orderItemDao;
     }
 
     // ------------ MAIN DASHBOARD API ------------
@@ -254,7 +258,7 @@ public class SellerController {
 
         // orders that contain this seller's products
         try {
-            orders = orderDao.findBySeller(userId);
+            orders = orderDao.findByUserId(userId);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -404,29 +408,34 @@ public class SellerController {
     @GetMapping("/orders/recent")
     public List<Map<String, Object>> getRecentOrders(@RequestParam("userId") int userId) {
 
-        List<Order> orders = Collections.emptyList();
-        try {
-            orders = orderDao.findBySeller(userId);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        // fetch all orders for the user
+        List<Order> orders = orderDao.findByUserId(userId);
 
         return orders.stream()
-                .sorted(Comparator.comparing(Order::getPlacedAt).reversed())
-                .limit(10)
+                .sorted(Comparator.comparing(Order::getPlacedAt).reversed()) // sort by date descending
+                .limit(10) // take only 10 most recent
                 .map(o -> {
                     Map<String, Object> m = new HashMap<>();
-                    m.put("orderId",       o.getOrderId());
-                    m.put("orderDate",     o.getPlacedAt());
-                    // we’re not joining products here, so productName may be null
-                    m.put("productName",   o.getProductName()); // will be null unless you join later
-                    m.put("totalAmount",   o.getTotalAmount());
-                    m.put("status",        o.getOrderStatus());
+                    m.put("orderId", o.getOrderId());
+                    m.put("orderDate", o.getPlacedAt());
+
+                    // fetch all items for this order
+                    List<OrderItem> items = orderItemDao.findByOrderId(o.getOrderId());
+
+                    // get the first product name (or a comma-separated list if you prefer)
+                    String productNames = items.stream()
+                                               .map(OrderItem::getProductName)
+                                               .collect(Collectors.joining(", "));
+                    m.put("productName", productNames);
+
+                    m.put("totalAmount", o.getTotalAmount());
+                    m.put("status", o.getOrderStatus());
                     m.put("paymentStatus", o.getPaymentMethod());
                     return m;
                 })
                 .collect(Collectors.toList());
     }
+
 
     @PutMapping("/orders/{orderId}/status")
     public ResponseEntity<Void> updateOrderStatus(@PathVariable int orderId,

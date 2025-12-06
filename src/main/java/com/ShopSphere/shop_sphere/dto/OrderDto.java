@@ -33,6 +33,7 @@ public class OrderDto {
             LocalDateTime placedAt,
             String paymentMethod,
             String razorpayOrderId
+            ,String paymentStatus
     ) {
         this.order_id = order_id;
         this.userId = userId;
@@ -42,6 +43,7 @@ public class OrderDto {
         this.placedAt = placedAt;
         this.paymentMethod = paymentMethod;
         this.razorpayOrderId = razorpayOrderId;
+        this.paymentStatus = paymentStatus;
     }
 
     private Integer order_id;
@@ -67,6 +69,8 @@ public class OrderDto {
 
     // ✅ Added Razorpay Order ID field here
     private String razorpayOrderId;
+    
+    private String paymentStatus;
 
 
     // ----------- Getters & Setters ------------ //
@@ -134,4 +138,12 @@ public class OrderDto {
     public void setRazorpayOrderId(String razorpayOrderId) {
         this.razorpayOrderId = razorpayOrderId;
     }
+
+	public String getPaymentStatus() {
+		return paymentStatus;
+	}
+
+	public void setPaymentStatus(String paymentStatus) {
+		this.paymentStatus = paymentStatus;
+	}
 }

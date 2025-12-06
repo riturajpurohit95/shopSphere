@@ -22,6 +22,10 @@ public class OrderItemDto {
             @NotNull(message = "Product Id is required")
             @Min(value = 1, message = "productId must be >= 1")
             Integer productId,
+            
+            @NotNull(message = "Seller Id is required")
+            @Min(value = 1, message = "sellerId must be >= 1")
+            Integer sellerId,
 
             @NotBlank(message = "Product name is required")
             String productName,
@@ -40,6 +44,7 @@ public class OrderItemDto {
         this.orderItemsid = orderItemsid;
         this.orderId = orderId;
         this.productId = productId;
+        this.sellerId = sellerId;
         this.productName = productName;
         this.quantity = quantity;
         this.unitPrice = unitPrice;
@@ -55,6 +60,10 @@ public class OrderItemDto {
     @NotNull(message = "Product Id is required")
     @Min(value = 1, message = "productId must be >= 1")
     private Integer productId;
+    
+    @NotNull(message = "Seller Id is required")
+    @Min(value = 1, message = "sellerId must be >= 1")
+    private Integer sellerId;
 
     @NotBlank(message = "Product name is required")
     private String productName;
@@ -90,9 +99,17 @@ public class OrderItemDto {
     public Integer getProductId() {
         return productId;
     }
+    
+    public Integer getSellerId() {
+        return sellerId;
+    }
 
     public void setProductId(Integer productId) {
         this.productId = productId;
+    }
+    
+    public void setSellerId(Integer productId) {
+        this.sellerId = sellerId;
     }
 
     public String getProductName() {
@@ -127,7 +144,6 @@ public class OrderItemDto {
         this.totalItemPrice = totalItemPrice;
     }
 }
-
 
 
 

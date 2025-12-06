@@ -1,5 +1,6 @@
 package com.ShopSphere.shop_sphere.repository;
 
+import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
@@ -146,4 +147,37 @@ public class OrderDaoImpl implements OrderDao {
         return jdbcTemplate.query(sql, new OrderRowMapper(), userId);
     }
 
+    
+    @Override
+    public void updateTotalAmount(int orderId, BigDecimal totalAmount) {
+        String sql = "UPDATE orders SET total_amount = ? WHERE order_id = ?";
+        jdbcTemplate.update(sql, totalAmount, orderId);
+    }
+
+    
+    @Override
+    public List<Order> findOrdersWithPaymentByUserId(int userId) {
+        String sql = "SELECT o.order_id, o.user_id, o.total_amount, o.shipping_address, " +
+                     "o.placed_at, o.orderStatus, o.payment_method, " +
+                     "p.status AS payment_status " +
+                     "FROM orders o " +
+                     "LEFT JOIN payments p ON o.order_id = p.order_id " +
+                     "WHERE o.user_id = ? " +
+                     "ORDER BY o.placed_at DESC";
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Order order = new Order();
+            order.setOrderId(rs.getInt("order_id"));
+            order.setUserId(rs.getInt("user_id"));
+            order.setTotalAmount(rs.getBigDecimal("total_amount"));
+            order.setShippingAddress(rs.getString("shipping_address"));
+            order.setPlacedAt(rs.getTimestamp("placed_at").toLocalDateTime());
+            order.setOrderStatus(rs.getString("orderStatus"));
+            order.setPaymentMethod(rs.getString("payment_method"));
+            order.setPaymentStatus(rs.getString("payment_status")); // <-- important
+            return order;
+        }, userId);
+    }
 }
+
+

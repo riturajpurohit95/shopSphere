@@ -29,6 +29,7 @@ public class OrderItemDaoImpl implements OrderItemDao {
     @Override
     public int save(OrderItem orderItem) {
 
+        // reduce stock (keep this here)
         int updatedRows = productDao.decreaseStockIfAvailable(
                 orderItem.getProductId(),
                 orderItem.getQuantity());
@@ -37,8 +38,8 @@ public class OrderItemDaoImpl implements OrderItemDao {
         }
 
         String sql = "INSERT INTO order_items " +
-                     "(order_id, product_id, product_name, quantity, unit_price, total_item_price) " +
-                     "VALUES (?, ?, ?, ?, ?,?)";
+                     "(order_id, product_id, seller_id, product_name, quantity, unit_price, total_item_price) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -46,10 +47,11 @@ public class OrderItemDaoImpl implements OrderItemDao {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, orderItem.getOrderId());
             ps.setInt(2, orderItem.getProductId());
-            ps.setString(3, orderItem.getProductName());
-            ps.setInt(4, orderItem.getQuantity());
-            ps.setBigDecimal(5, orderItem.getUnitPrice());
-            ps.setBigDecimal(6, orderItem.getTotalItemPrice());
+            ps.setInt(3, orderItem.getSellerId());               // NEW
+            ps.setString(4, orderItem.getProductName());
+            ps.setInt(5, orderItem.getQuantity());
+            ps.setBigDecimal(6, orderItem.getUnitPrice());
+            ps.setBigDecimal(7, orderItem.getTotalItemPrice());
             return ps;
         }, keyHolder);
 
@@ -60,6 +62,8 @@ public class OrderItemDaoImpl implements OrderItemDao {
 
         return orderItem.getOrderItemsId();
     }
+
+
 
     @Override
     public Optional<OrderItem> findById(int orderItemsId) {

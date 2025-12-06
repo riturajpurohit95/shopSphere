@@ -1,5 +1,6 @@
 package com.ShopSphere.shop_sphere.repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -18,11 +19,16 @@ public interface OrderDao {
 	int cancelOrder(int orderId);
 	int deleteById(int orderId);
 	
+	void updateTotalAmount(int orderId, BigDecimal totalAmount);
+
+	
 	List<Order> findByStatusAndPlacedAtBefore(String status, LocalDateTime cutOffTime);
 	
 	int updateRazorpayOrderId(int orderId, String razorpayOrderId);
 	List<Map<String, Object>> getOrdersWithItems(int userId);
 	List<Order> findAll();
 	List<Order> findBySeller(int userId);
+	
+	List<Order> findOrdersWithPaymentByUserId(int userId);
     
 }

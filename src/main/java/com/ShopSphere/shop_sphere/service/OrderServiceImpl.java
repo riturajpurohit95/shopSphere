@@ -1,5 +1,6 @@
 package com.ShopSphere.shop_sphere.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -7,16 +8,21 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ShopSphere.shop_sphere.dto.OrderItemDto;
+import com.ShopSphere.shop_sphere.dto.OrderRequest;
 import com.ShopSphere.shop_sphere.dto.PaymentDto;
 import com.ShopSphere.shop_sphere.exception.OrderAlreadyProcessedException;
 import com.ShopSphere.shop_sphere.exception.PaymentMethodNotSupportedException;
 import com.ShopSphere.shop_sphere.exception.ResourceNotFoundException;
 import com.ShopSphere.shop_sphere.model.Order;
 import com.ShopSphere.shop_sphere.model.OrderItem;
+import com.ShopSphere.shop_sphere.model.Payment;
 import com.ShopSphere.shop_sphere.model.Product;
 import com.ShopSphere.shop_sphere.repository.OrderDao;
 import com.ShopSphere.shop_sphere.repository.OrderItemDao;
+import com.ShopSphere.shop_sphere.repository.PaymentDao;
 import com.ShopSphere.shop_sphere.repository.ProductDao;
+
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -26,58 +32,101 @@ public class OrderServiceImpl implements OrderService {
     private final DeliveryService deliveryService;
     private final ProductDao productDao;
     private final OrderItemDao orderItemDao;
+    private final PaymentDao paymentDao;
 
     public OrderServiceImpl(OrderDao orderDao,
                             PaymentService paymentService,
                             DeliveryService deliveryService,
                             ProductDao productDao,
-                            OrderItemDao orderItemDao) {
+                            OrderItemDao orderItemDao,
+                            PaymentDao paymentDao) {
         this.orderDao = orderDao;
         this.paymentService = paymentService;
         this.deliveryService = deliveryService;
         this.productDao = productDao;
         this.orderItemDao = orderItemDao;
+        this.paymentDao = paymentDao;
     }
 
     @Override
     @Transactional
-    public Order createOrder(Order order) {
-        if (order == null) {
-            throw new IllegalArgumentException("Order must not be null");
+    public Order createOrder(OrderRequest dto) {
+
+        if (dto.getItems() == null || dto.getItems().isEmpty()) {
+            throw new IllegalArgumentException("Order must contain at least one item.");
         }
 
-        String method = order.getPaymentMethod();
-        if (method == null || !(method.equalsIgnoreCase("COD") || method.equalsIgnoreCase("UPI"))) {
-            throw new PaymentMethodNotSupportedException(method);
+        // 1️⃣ Create order with temporary totalAmount = 0
+        Order order = new Order();
+        order.setUserId(dto.getUserId());
+        order.setShippingAddress(dto.getShippingAddress());
+        order.setPaymentMethod(dto.getPaymentMethod());
+        order.setOrderStatus("PENDING");
+        order.setPlacedAt(LocalDateTime.now());
+        order.setTotalAmount(BigDecimal.ZERO);
+
+        orderDao.save(order); // generates orderId
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+
+        // 2️⃣ Insert each order item
+        for (OrderItemDto itemDto : dto.getItems()) {
+            Product product = productDao.findById(itemDto.getProductId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
+            int qty = (itemDto.getQuantity() == null) ? 1 : itemDto.getQuantity();
+            BigDecimal unitPrice = product.getProductPrice() != null ? product.getProductPrice() : BigDecimal.ZERO;
+            BigDecimal itemTotal = unitPrice.multiply(BigDecimal.valueOf(qty));
+
+            OrderItem orderItem = new OrderItem();
+            orderItem.setOrderId(order.getOrderId());
+            orderItem.setProductId(itemDto.getProductId());
+            orderItem.setSellerId(product.getUserId());
+            orderItem.setProductName(product.getProductName());
+            orderItem.setQuantity(qty);
+            orderItem.setUnitPrice(unitPrice);
+            orderItem.setTotalItemPrice(itemTotal);
+
+            orderItemDao.save(orderItem);
+
+            totalAmount = totalAmount.add(itemTotal);
         }
 
-        // initial lifecycle status
-        if (order.getOrderStatus() == null || order.getOrderStatus().isEmpty()) {
-            order.setOrderStatus("PENDING");
+        // 3️⃣ Update final totalAmount in orders table
+        orderDao.updateTotalAmount(order.getOrderId(), totalAmount);
+        order.setTotalAmount(totalAmount);
+
+        // 4️⃣ Create payment
+        Payment payment = new Payment();
+        payment.setOrderId(order.getOrderId());
+        payment.setUserId(order.getUserId());
+        payment.setAmount(totalAmount);
+        payment.setPaymentMethod(order.getPaymentMethod());
+        payment.setCreatedAt(LocalDateTime.now());
+
+        if ("COD".equalsIgnoreCase(order.getPaymentMethod())) {
+            payment.setStatus("PENDING");
+        } else if ("UPI".equalsIgnoreCase(order.getPaymentMethod())) {
+            // Mock UPI payment
+            payment.setGatewayRef("UPI_" + order.getOrderId());
+            payment.setUpiVpa("user@upi");
+
+            double rand = Math.random();
+            if (rand <= 0.9) {
+                payment.setStatus("PAID");
+            } else {
+                payment.setStatus("FAILED");
+            }
         }
 
-        if (order.getPlacedAt() == null) {
-            order.setPlacedAt(LocalDateTime.now());
-        }
+        paymentDao.save(payment);
 
-        int rows = orderDao.save(order);
-        if (rows <= 0) {
-            throw new RuntimeException("Create failed for order of userId: " + order.getUserId());
-        }
-
-        // create initial payment record
-        PaymentDto dto = new PaymentDto();
-        dto.setOrderId(order.getOrderId());
-        dto.setUserId(order.getUserId());
-        dto.setAmount(order.getTotalAmount());
-        dto.setCurrency("INR");
-        dto.setPaymentMethod(method.toUpperCase());
-
-        paymentService.createPayment(dto);
-
-        return orderDao.findById(order.getOrderId())
-                .orElseThrow(() -> new RuntimeException("Order not found after create: " + order.getOrderId()));
+        return order;
     }
+
+
+
+
 
     @Override
     public Order getOrderById(int orderId) {
@@ -299,4 +348,20 @@ String method = payment.getPaymentMethod();
             paymentService.updatePaymentStatus(payment.getPayment_id(), target);
         }
     }
+    
+    @Override
+    public void updateTotalAmount(int orderId, BigDecimal totalAmount) {
+        orderDao.updateTotalAmount(orderId, totalAmount);
+    }
+    
+    @Override
+    public List<Order> getOrdersWithPaymentByUser(int userId) {
+        List<Order> orders = orderDao.findOrdersWithPaymentByUserId(userId);
+
+        // Optional: sort by date again if needed
+        orders.sort((a, b) -> b.getPlacedAt().compareTo(a.getPlacedAt()));
+
+        return orders;
+    }
+
 }

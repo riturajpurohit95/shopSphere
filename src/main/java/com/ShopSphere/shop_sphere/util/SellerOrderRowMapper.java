@@ -13,11 +13,9 @@ public class SellerOrderRowMapper implements RowMapper<Order> {
 
     @Override
     public Order mapRow(ResultSet rs, int rowNum) throws SQLException {
-
         Order o = new Order();
-        // from orders table
         o.setOrderId(rs.getInt("order_id"));
-        o.setUserId(rs.getInt("user_id"));              // buyer id
+        o.setUserId(rs.getInt("user_id"));
         o.setTotalAmount(rs.getBigDecimal("total_amount"));
         o.setShippingAddress(rs.getString("shipping_address"));
         o.setOrderStatus(rs.getString("orderStatus"));
@@ -25,14 +23,8 @@ public class SellerOrderRowMapper implements RowMapper<Order> {
 
         Timestamp placed = rs.getTimestamp("placed_at");
         if (placed != null) {
-            LocalDateTime placedAt = placed.toLocalDateTime();
-            o.setPlacedAt(placedAt);
+            o.setPlacedAt(placed.toLocalDateTime());
         }
-
-        // from order_items table
-        o.setProductName(rs.getString("product_name"));
-        o.setProductQuantity(rs.getInt("quantity"));
-        o.setUnitPrice(rs.getBigDecimal("unit_price"));
 
         return o;
     }

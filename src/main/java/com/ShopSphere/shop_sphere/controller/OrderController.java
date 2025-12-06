@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.ShopSphere.shop_sphere.dto.OrderDto;
+import com.ShopSphere.shop_sphere.dto.OrderRequest;
 import com.ShopSphere.shop_sphere.model.Order;
 import com.ShopSphere.shop_sphere.security.AllowedRoles;
 import com.ShopSphere.shop_sphere.service.OrderService;
@@ -60,13 +61,15 @@ public class OrderController {
 
         return dto;
     }
-    @AllowedRoles({"BUYER", "ADMIN"})
-    @PostMapping
-    public ResponseEntity<OrderDto> createOrder(@Valid @RequestBody OrderDto dto) {
-        Order created = orderService.createOrder(dtoToEntity(dto));
-        return ResponseEntity.created(URI.create("/api/orders/" + created.getOrderId()))
-                             .body(entityToDto(created));
+    @AllowedRoles({"BUYER"})
+    @PostMapping("/create")
+    public ResponseEntity<?> createOrder(@RequestBody OrderRequest dto) {
+        Order created = orderService.createOrder(dto);
+        return ResponseEntity
+                .created(URI.create("/api/orders/" + created.getOrderId()))
+                .body(created);
     }
+
     @AllowedRoles({"BUYER", "ADMIN","SELLER"})
     @GetMapping("/{id}")
     public ResponseEntity<OrderDto> getOrderById(@PathVariable("id") int orderId) {
@@ -150,6 +153,27 @@ public class OrderController {
         }
         return ResponseEntity.ok(result);
     }
+    
+    @GetMapping("/user-with-payment/{userId}")
+    public ResponseEntity<List<OrderDto>> getOrdersWithPayment(@PathVariable int userId) {
+        List<Order> orders = orderService.getOrdersWithPaymentByUser(userId);
+
+        // Convert to DTOs
+        List<OrderDto> dtos = orders.stream().map(order -> {
+            OrderDto dto = new OrderDto();
+            dto.setOrder_id(order.getOrderId());
+            dto.setTotalAmount(order.getTotalAmount());
+            dto.setOrderStatus(order.getOrderStatus());
+            dto.setPlacedAt(order.getPlacedAt());
+            dto.setPaymentMethod(order.getPaymentMethod());
+            dto.setPaymentStatus(order.getPaymentStatus()); // <-- now frontend gets it
+            return dto;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(dtos);
+    }
 }
 
 	
+
+

@@ -3,92 +3,90 @@ package com.ShopSphere.shop_sphere.model;
 import java.math.BigDecimal;
 
 public class OrderItem {
-	
-	
-	public OrderItem(int orderId, int productId, String productName, int quantity, BigDecimal unitPrice,
-			BigDecimal totalItemPrice) {
-		super();
-		this.orderId = orderId;
-		this.productId = productId;
-		this.productName = productName;
-		this.quantity = quantity;
-		this.unitPrice = unitPrice;
-		this.totalItemPrice = totalItemPrice;
-	}
 
-	private int orderItemsId;
-	private int orderId;
-	private int productId;
-	private String productName;
-	private int quantity;
-	private BigDecimal unitPrice;
-	private BigDecimal totalItemPrice;
-	
-	public OrderItem() {}
+    private int orderItemsId;
+    private int orderId;
+    private int productId;
+    private int sellerId;   // NEW FIELD (MISSING BEFORE)
+    private String productName;
+    private int quantity;
+    private BigDecimal unitPrice;
+    private BigDecimal totalItemPrice;
 
-	public int getOrderItemsId() {
-		return orderItemsId;
-	}
+    public OrderItem() {}
 
-	public void setOrderItemsId(int orderItemsId) {
-		this.orderItemsId = orderItemsId;
-	}
+    public OrderItem(int orderId, int productId, int sellerId, String productName,
+                     int quantity, BigDecimal unitPrice, BigDecimal totalItemPrice) {
+        this.orderId = orderId;
+        this.productId = productId;
+        this.sellerId = sellerId;
+        this.productName = productName;
+        this.quantity = quantity;
+        this.unitPrice = unitPrice;
+        this.totalItemPrice = totalItemPrice;
+    }
 
-	public int getOrderId() {
-		return orderId;
-	}
+    public int getOrderItemsId() {
+        return orderItemsId;
+    }
 
-	public void setOrderId(int orderId) {
-		this.orderId = orderId;
-	}
+    public void setOrderItemsId(int orderItemsId) {
+        this.orderItemsId = orderItemsId;
+    }
 
-	public int getProductId() {
-		return productId;
-	}
+    public int getOrderId() {
+        return orderId;
+    }
 
-	public void setProductId(int productId) {
-		this.productId = productId;
-	}
+    public void setOrderId(int orderId) {
+        this.orderId = orderId;
+    }
 
-	public String getProductName() {
-		return productName;
-	}
+    public int getProductId() {
+        return productId;
+    }
 
-	public void setProductName(String productName) {
-		this.productName = productName;
-	}
+    public void setProductId(int productId) {
+        this.productId = productId;
+    }
 
-	public int getQuantity() {
-		return quantity;
-	}
+    public int getSellerId() {
+        return sellerId;
+    }
 
-	public void setQuantity(int quantity) {
-		this.quantity = quantity;
-	}
+    public void setSellerId(int sellerId) {
+        this.sellerId = sellerId;
+    }
 
-	public BigDecimal getUnitPrice() {
-		return unitPrice;
-	}
+    public String getProductName() {
+        return productName;
+    }
 
-	public void setUnitPrice(BigDecimal unitPrice) {
-		this.unitPrice = unitPrice;
-	}
+    public void setProductName(String productName) {
+        this.productName = productName;
+    }
 
-	public BigDecimal getTotalItemPrice() {
-		return totalItemPrice;
-	}
+    public int getQuantity() {
+        return quantity;
+    }
 
-	public void setTotalItemPrice(BigDecimal totalItemPrice) {
-		this.totalItemPrice = totalItemPrice;
-	}
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
 
-	@Override
-	public String toString() {
-		return "OrderItem [orderItemsId=" + orderItemsId + ", orderId=" + orderId + ", productId=" + productId
-				+ ", productName=" + productName + ", quantity=" + quantity + ", unitPrice=" + unitPrice
-				+ ", totalItemPrice=" + totalItemPrice + "]";
-	}
+    public BigDecimal getUnitPrice() {
+        return unitPrice;
+    }
 
-	
+    public void setUnitPrice(BigDecimal unitPrice) {
+        this.unitPrice = unitPrice;
+    }
 
+    public BigDecimal getTotalItemPrice() {
+        return totalItemPrice;
+    }
+
+    public void setTotalItemPrice(BigDecimal totalItemPrice) {
+        this.totalItemPrice = totalItemPrice;
+    }
 }
